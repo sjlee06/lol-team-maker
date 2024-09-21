@@ -135,13 +135,14 @@
             const groups = document.querySelectorAll('.group');
             groups.forEach(group => {
                 const playerSelection = group.querySelector('.playerSelection');
+                const existingSelections = Array.from(playerSelection.querySelectorAll('input:checked')).map(input => input.value);
                 playerSelection.innerHTML = '';
                 players.forEach((player, index) => {
                     if (player) {
                         const checkbox = document.createElement('label');
                         checkbox.className = 'playerCheckbox';
                         checkbox.innerHTML = `
-                            <input type="checkbox" value="${index}">
+                            <input type="checkbox" value="${index}" ${existingSelections.includes(index.toString()) ? 'checked' : ''}>
                             ${player}
                         `;
                         playerSelection.appendChild(checkbox);
@@ -167,61 +168,54 @@
             }));
 
             const teamOptions = [];
+
             for (let i = 0; i < 4; i++) {
-                const team1 = [];
-                const team2 = [];
+                const group1 = [];
+                const group2 = [];
                 const unassigned = new Set(players.keys());
 
                 groups.forEach(group => {
                     if (group.type === 'same') {
-                        const targetTeam = Math.random() < 0.5 ? team1 : team2;
+                        const targetGroup = Math.random() < 0.5 ? group1 : group2;
                         group.players.forEach(playerIndex => {
                             if (unassigned.has(playerIndex)) {
-                                targetTeam.push(players[playerIndex]);
+                                targetGroup.push(players[playerIndex]);
                                 unassigned.delete(playerIndex);
                             }
                         });
                     } else {
-                        let team1Added = false;
-                        group.players.forEach(playerIndex => {
-                            if (unassigned.has(playerIndex)) {
-                                if (!team1Added && team1.length < 5) {
-                                    team1.push(players[playerIndex]);
-                                    team1Added = true;
-                                } else if (team2.length < 5) {
-                                    team2.push(players[playerIndex]);
+                        const groupPlayers = group.players.filter(playerIndex => unassigned.has(playerIndex));
+                        for (let j = 0; j < groupPlayers.length; j += 2) {
+                            if (j + 1 < groupPlayers.length) {
+                                if (Math.random() < 0.5) {
+                                    group1.push(players[groupPlayers[j]]);
+                                    group2.push(players[groupPlayers[j + 1]]);
+                                } else {
+                                    group2.push(players[groupPlayers[j]]);
+                                    group1.push(players[groupPlayers[j + 1]]);
                                 }
-                                unassigned.delete(playerIndex);
+                                unassigned.delete(groupPlayers[j]);
+                                unassigned.delete(groupPlayers[j + 1]);
                             }
-                        });
+                        }
                     }
                 });
 
                 const remainingPlayers = Array.from(unassigned).map(index => players[index]);
-                while (remainingPlayers.length > 0) {
-                    const playerIndex = Math.floor(Math.random() * remainingPlayers.length);
-                    const player = remainingPlayers.splice(playerIndex, 1)[0];
-                    if (team1.length < 5) {
-                        team1.push(player);
+                remainingPlayers.sort(() => Math.random() - 0.5);
+                for (let j = 0; j < remainingPlayers.length; j++) {
+                    if (group1.length < 5) {
+                        group1.push(remainingPlayers[j]);
                     } else {
-                        team2.push(player);
+                        group2.push(remainingPlayers[j]);
                     }
                 }
 
+                const [team1, team2] = Math.random() < 0.5 ? [group1, group2] : [group2, group1];
                 teamOptions.push({ team1, team2 });
             }
 
-            const uniqueOptions = [];
-            teamOptions.forEach(option => {
-                if (!uniqueOptions.some(uniqueOption => 
-                    (uniqueOption.team1.join(' ') === option.team1.join(' ') && uniqueOption.team2.join(' ') === option.team2.join(' ')) ||
-                    (uniqueOption.team1.join(' ') === option.team2.join(' ') && uniqueOption.team2.join(' ') === option.team1.join(' '))
-                )) {
-                    uniqueOptions.push(option);
-                }
-            });
-
-            displayTeams(uniqueOptions.slice(0, 4));
+            displayTeams(teamOptions);
         }
 
         function displayTeams(teamOptions) {
