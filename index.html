@@ -10,42 +10,75 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f0f0f0;
         }
         input, button, select {
             margin: 5px;
-            padding: 5px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
         }
         #result {
             margin-top: 20px;
         }
         .team-option {
-            border: 2px solid #ccc;
-            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 15px;
             margin-bottom: 20px;
         }
         .team {
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
         .team-name {
             font-weight: bold;
+            color: #333;
         }
         .horizontal-line {
-            border-top: 1px solid #ccc;
-            margin: 5px 0;
+            border-top: 1px solid #eee;
+            margin: 10px 0;
         }
         #groupsSection {
             margin-top: 20px;
-            border: 1px solid #ddd;
-            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .group {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             padding: 10px;
             border: 1px solid #eee;
+            border-radius: 4px;
         }
         .removeGroup {
-            color: red;
+            color: #ff4444;
             cursor: pointer;
+            float: right;
+        }
+        .playerCheckbox {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        .playerCheckbox input {
+            margin-right: 5px;
+        }
+        .option-number {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
         }
     </style>
 </head>
@@ -80,7 +113,7 @@
             groupDiv.className = 'group';
             groupDiv.innerHTML = `
                 <h4>그룹 ${groupCounter} <span class="removeGroup" onclick="removeGroup(this)">✖</span></h4>
-                <select multiple class="groupPlayers"></select>
+                <div class="playerSelection"></div>
                 <br>
                 <label>
                     <input type="radio" name="group${groupCounter}" value="same" checked> 같은 팀
@@ -99,17 +132,19 @@
 
         function updatePlayerOptions() {
             const players = getPlayers();
-            const selects = document.querySelectorAll('.groupPlayers');
-            selects.forEach(select => {
-                const selectedValues = Array.from(select.selectedOptions).map(option => option.value);
-                select.innerHTML = '';
+            const groups = document.querySelectorAll('.group');
+            groups.forEach(group => {
+                const playerSelection = group.querySelector('.playerSelection');
+                playerSelection.innerHTML = '';
                 players.forEach((player, index) => {
                     if (player) {
-                        const option = document.createElement('option');
-                        option.value = index;
-                        option.textContent = player;
-                        option.selected = selectedValues.includes(index.toString());
-                        select.appendChild(option);
+                        const checkbox = document.createElement('label');
+                        checkbox.className = 'playerCheckbox';
+                        checkbox.innerHTML = `
+                            <input type="checkbox" value="${index}">
+                            ${player}
+                        `;
+                        playerSelection.appendChild(checkbox);
                     }
                 });
             });
@@ -127,7 +162,7 @@
             }
 
             const groups = Array.from(document.querySelectorAll('.group')).map(group => ({
-                players: Array.from(group.querySelector('.groupPlayers').selectedOptions).map(option => parseInt(option.value)),
+                players: Array.from(group.querySelectorAll('.playerCheckbox input:checked')).map(checkbox => parseInt(checkbox.value)),
                 type: group.querySelector('input[type="radio"]:checked').value
             }));
 
@@ -137,7 +172,6 @@
                 const team2 = [];
                 const unassigned = new Set(players.keys());
 
-                // 그룹 규칙에 따라 플레이어 할당
                 groups.forEach(group => {
                     if (group.type === 'same') {
                         const targetTeam = Math.random() < 0.5 ? team1 : team2;
@@ -163,7 +197,6 @@
                     }
                 });
 
-                // 남은 플레이어 무작위 할당
                 const remainingPlayers = Array.from(unassigned).map(index => players[index]);
                 while (remainingPlayers.length > 0) {
                     const playerIndex = Math.floor(Math.random() * remainingPlayers.length);
@@ -178,7 +211,6 @@
                 teamOptions.push({ team1, team2 });
             }
 
-            // 중복 제거 및 최대 4개의 유니크한 옵션 선택
             const uniqueOptions = [];
             teamOptions.forEach(option => {
                 if (!uniqueOptions.some(uniqueOption => 
@@ -197,7 +229,7 @@
             teamOptions.forEach((option, index) => {
                 resultHTML += `
                     <div class="team-option">
-                        <h3>옵션 ${index + 1}</h3>
+                        <div class="option-number">옵션 ${index + 1}</div>
                         <div class="team">
                             <span class="team-name">팀 1:</span> ${option.team1.join(' ')}
                         </div>
@@ -211,12 +243,10 @@
             document.getElementById('result').innerHTML = resultHTML;
         }
 
-        // 플레이어 입력 필드의 변경을 감지하여 그룹 플레이어 선택 옵션 업데이트
         document.querySelectorAll('#inputs input').forEach(input => {
             input.addEventListener('input', updatePlayerOptions);
         });
 
-        // 초기 그룹 추가
         addGroup();
     </script>
 </body>
