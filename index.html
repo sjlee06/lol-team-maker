@@ -7,25 +7,45 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            text-align: center;
         }
-        input, button {
+        input, button, select {
             margin: 5px;
             padding: 5px;
         }
         #result {
             margin-top: 20px;
         }
-        .team {
-            display: inline-block;
-            width: 45%;
-            vertical-align: top;
-            border: 1px solid #ccc;
+        .team-option {
+            border: 2px solid #ccc;
             padding: 10px;
-            margin: 10px;
+            margin-bottom: 20px;
+        }
+        .team {
+            margin-bottom: 5px;
+        }
+        .team-name {
+            font-weight: bold;
+        }
+        .horizontal-line {
+            border-top: 1px solid #ccc;
+            margin: 5px 0;
+        }
+        #groupsSection {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .group {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+        }
+        .removeGroup {
+            color: red;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -43,47 +63,161 @@
         <input type="text" id="player9" placeholder="플레이어 9">
         <input type="text" id="player10" placeholder="플레이어 10">
     </div>
+    <div id="groupsSection">
+        <h3>팀 분리/결합 그룹 설정</h3>
+        <button onclick="addGroup()">새 그룹 추가</button>
+        <div id="groups"></div>
+    </div>
     <button onclick="makeTeams()">팀 만들기</button>
     <div id="result"></div>
 
     <script>
-        function makeTeams() {
-            let players = [];
-            for (let i = 1; i <= 10; i++) {
-                let player = document.getElementById('player' + i).value.trim();
-                if (player) {
-                    players.push(player);
-                }
-            }
+        let groupCounter = 0;
 
+        function addGroup() {
+            groupCounter++;
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'group';
+            groupDiv.innerHTML = `
+                <h4>그룹 ${groupCounter} <span class="removeGroup" onclick="removeGroup(this)">✖</span></h4>
+                <select multiple class="groupPlayers"></select>
+                <br>
+                <label>
+                    <input type="radio" name="group${groupCounter}" value="same" checked> 같은 팀
+                </label>
+                <label>
+                    <input type="radio" name="group${groupCounter}" value="different"> 다른 팀
+                </label>
+            `;
+            document.getElementById('groups').appendChild(groupDiv);
+            updatePlayerOptions();
+        }
+
+        function removeGroup(element) {
+            element.closest('.group').remove();
+        }
+
+        function updatePlayerOptions() {
+            const players = getPlayers();
+            const selects = document.querySelectorAll('.groupPlayers');
+            selects.forEach(select => {
+                const selectedValues = Array.from(select.selectedOptions).map(option => option.value);
+                select.innerHTML = '';
+                players.forEach((player, index) => {
+                    if (player) {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = player;
+                        option.selected = selectedValues.includes(index.toString());
+                        select.appendChild(option);
+                    }
+                });
+            });
+        }
+
+        function getPlayers() {
+            return Array.from({ length: 10 }, (_, i) => document.getElementById(`player${i + 1}`).value.trim());
+        }
+
+        function makeTeams() {
+            const players = getPlayers().filter(player => player);
             if (players.length !== 10) {
                 alert('정확히 10명의 플레이어를 입력해주세요!');
                 return;
             }
 
-            // 플레이어 섞기
-            for (let i = players.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [players[i], players[j]] = [players[j], players[i]];
+            const groups = Array.from(document.querySelectorAll('.group')).map(group => ({
+                players: Array.from(group.querySelector('.groupPlayers').selectedOptions).map(option => parseInt(option.value)),
+                type: group.querySelector('input[type="radio"]:checked').value
+            }));
+
+            const teamOptions = [];
+            for (let i = 0; i < 4; i++) {
+                const team1 = [];
+                const team2 = [];
+                const unassigned = new Set(players.keys());
+
+                // 그룹 규칙에 따라 플레이어 할당
+                groups.forEach(group => {
+                    if (group.type === 'same') {
+                        const targetTeam = Math.random() < 0.5 ? team1 : team2;
+                        group.players.forEach(playerIndex => {
+                            if (unassigned.has(playerIndex)) {
+                                targetTeam.push(players[playerIndex]);
+                                unassigned.delete(playerIndex);
+                            }
+                        });
+                    } else {
+                        let team1Added = false;
+                        group.players.forEach(playerIndex => {
+                            if (unassigned.has(playerIndex)) {
+                                if (!team1Added && team1.length < 5) {
+                                    team1.push(players[playerIndex]);
+                                    team1Added = true;
+                                } else if (team2.length < 5) {
+                                    team2.push(players[playerIndex]);
+                                }
+                                unassigned.delete(playerIndex);
+                            }
+                        });
+                    }
+                });
+
+                // 남은 플레이어 무작위 할당
+                const remainingPlayers = Array.from(unassigned).map(index => players[index]);
+                while (remainingPlayers.length > 0) {
+                    const playerIndex = Math.floor(Math.random() * remainingPlayers.length);
+                    const player = remainingPlayers.splice(playerIndex, 1)[0];
+                    if (team1.length < 5) {
+                        team1.push(player);
+                    } else {
+                        team2.push(player);
+                    }
+                }
+
+                teamOptions.push({ team1, team2 });
             }
 
-            let team1 = players.slice(0, 5);
-            let team2 = players.slice(5);
-
-            let resultHTML = '<div class="team"><h2>팀 1</h2><ul>';
-            team1.forEach(player => {
-                resultHTML += '<li>' + player + '</li>';
+            // 중복 제거 및 최대 4개의 유니크한 옵션 선택
+            const uniqueOptions = [];
+            teamOptions.forEach(option => {
+                if (!uniqueOptions.some(uniqueOption => 
+                    (uniqueOption.team1.join(' ') === option.team1.join(' ') && uniqueOption.team2.join(' ') === option.team2.join(' ')) ||
+                    (uniqueOption.team1.join(' ') === option.team2.join(' ') && uniqueOption.team2.join(' ') === option.team1.join(' '))
+                )) {
+                    uniqueOptions.push(option);
+                }
             });
-            resultHTML += '</ul></div>';
 
-            resultHTML += '<div class="team"><h2>팀 2</h2><ul>';
-            team2.forEach(player => {
-                resultHTML += '<li>' + player + '</li>';
+            displayTeams(uniqueOptions.slice(0, 4));
+        }
+
+        function displayTeams(teamOptions) {
+            let resultHTML = '';
+            teamOptions.forEach((option, index) => {
+                resultHTML += `
+                    <div class="team-option">
+                        <h3>옵션 ${index + 1}</h3>
+                        <div class="team">
+                            <span class="team-name">팀 1:</span> ${option.team1.join(' ')}
+                        </div>
+                        <div class="horizontal-line"></div>
+                        <div class="team">
+                            <span class="team-name">팀 2:</span> ${option.team2.join(' ')}
+                        </div>
+                    </div>
+                `;
             });
-            resultHTML += '</ul></div>';
-
             document.getElementById('result').innerHTML = resultHTML;
         }
+
+        // 플레이어 입력 필드의 변경을 감지하여 그룹 플레이어 선택 옵션 업데이트
+        document.querySelectorAll('#inputs input').forEach(input => {
+            input.addEventListener('input', updatePlayerOptions);
+        });
+
+        // 초기 그룹 추가
+        addGroup();
     </script>
 </body>
 </html>
