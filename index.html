@@ -137,6 +137,7 @@
             `;
             document.getElementById('groups').appendChild(groupDiv);
             updatePlayerOptions();
+            groupDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
         function removeGroup(element) {
